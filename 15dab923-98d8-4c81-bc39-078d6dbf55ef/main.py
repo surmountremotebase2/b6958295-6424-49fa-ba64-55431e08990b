@@ -1,6 +1,6 @@
 from surmount.base_class import Strategy, TargetAllocation
 from surmount.technical_indicators import MACD
-from surmount.data import get_ticker_data, get_ticker_correlation
+from surmount.data import get_ticker_correlation
 from surmount.logging import log
 import cvxpy as cp
 import numpy as np
@@ -66,18 +66,16 @@ class TradingStrategy(Strategy):
     def run(self, data):
         returns = []
         risks = []
-        tickers_data = []
 
         momentum_scores = self.calculate_momentum_scores(data)
 
         for ticker in self.tickers:
-            tickers_data.append(data["ohlcv"][ticker])
             # Assuming data["fundamentals"] contains necessary return and risk data
             returns.append(data["fundamentals"][ticker]['return'])
             risks.append(data["fundamentals"][ticker]['risk'])
 
         # Get correlation matrix
-        correlation_matrix = get_ticker_correlation(tickers_data)
+        correlation_matrix = get_ticker_correlation(self.tickers)
 
         # Perform mean-variance optimization
         optimized_weights = self.optimize_portfolio(returns, risks, correlation_matrix)
