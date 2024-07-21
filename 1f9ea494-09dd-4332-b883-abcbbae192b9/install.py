@@ -1,1 +1,1 @@
-type code here
+pip install finvizfinance
