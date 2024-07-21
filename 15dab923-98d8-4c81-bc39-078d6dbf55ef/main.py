@@ -1,7 +1,6 @@
 from surmount.base_class import Strategy, TargetAllocation
 from surmount.technical_indicators import MACD
 from surmount.logging import log
-import cvxpy as cp
 import numpy as np
 
 class TradingStrategy(Strategy):
@@ -37,32 +36,25 @@ class TradingStrategy(Strategy):
 
     def optimize_portfolio(self, returns, risks):
         n = len(returns)
-        # Convert lists to numpy arrays
-        returns = np.array(returns)
-        risks = np.array(risks)
+        weights = np.ones(n) / n  # Start with equal weights
+        max_iterations = 1000
+        learning_rate = 0.01
 
-        # Create a placeholder correlation matrix (identity matrix for simplicity)
-        correlation_matrix = np.identity(n)
+        for _ in range(max_iterations):
+            # Compute portfolio return and risk
+            portfolio_return = np.dot(weights, returns)
+            portfolio_risk = np.sqrt(np.dot(weights.T, np.dot(np.diag(risks**2), weights)))
 
-        # Create the covariance matrix from correlation and risks
-        covariance_matrix = np.outer(risks, risks) * correlation_matrix
+            # Calculate gradient (simplified for illustrative purposes)
+            grad_return = returns
+            grad_risk = risks / portfolio_risk
 
-        # Define the optimization variables
-        weights = cp.Variable(n)
+            # Update weights
+            weights += learning_rate * (grad_return - grad_risk)
+            weights = np.maximum(weights, 0)  # Ensure weights are non-negative
+            weights /= np.sum(weights)  # Normalize to ensure weights sum to 1
 
-        # Define the objective function: maximize returns for given risk (mean-variance optimization)
-        objective = cp.Maximize(returns.T @ weights - cp.quad_form(weights, covariance_matrix))
-
-        # Define the constraints: sum of weights is 1, weights are non-negative
-        constraints = [cp.sum(weights) == 1, weights >= 0]
-
-        # Formulate and solve the optimization problem
-        problem = cp.Problem(objective, constraints)
-        problem.solve()
-
-        # Retrieve the optimized weights
-        optimized_weights = weights.value
-        return optimized_weights
+        return weights
 
     def run(self, data):
         returns = []
@@ -75,8 +67,8 @@ class TradingStrategy(Strategy):
             returns.append(data["fundamentals"][ticker]['return'])
             risks.append(data["fundamentals"][ticker]['risk'])
 
-        # Perform mean-variance optimization
-        optimized_weights = self.optimize_portfolio(returns, risks)
+        # Perform basic optimization
+        optimized_weights = self.optimize_portfolio(np.array(returns), np.array(risks))
 
         # Generate allocations based on optimized weights
         allocation_dict = {ticker: optimized_weights[i] for i, ticker in enumerate(self.tickers)}
