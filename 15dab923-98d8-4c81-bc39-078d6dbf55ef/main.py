@@ -1,8 +1,8 @@
 from surmount.base_class import Strategy, TargetAllocation
 from surmount.technical_indicators import MACD
-from surmount.optimization import MeanVarianceOptimizer
 from surmount.data import get_ticker_data, get_ticker_correlation
 from surmount.logging import log
+import cvxpy as cp
 import numpy as np
 
 class TradingStrategy(Strategy):
@@ -37,9 +37,30 @@ class TradingStrategy(Strategy):
         return momentum_scores
 
     def optimize_portfolio(self, returns, risks, correlation_matrix):
-        # Perform mean-variance optimization
-        mvo = MeanVarianceOptimizer(returns, risks, correlation_matrix)
-        optimized_weights = mvo.optimize()
+        n = len(returns)
+        # Convert lists to numpy arrays
+        returns = np.array(returns)
+        risks = np.array(risks)
+        correlation_matrix = np.array(correlation_matrix)
+
+        # Create the covariance matrix from correlation and risks
+        covariance_matrix = np.outer(risks, risks) * correlation_matrix
+
+        # Define the optimization variables
+        weights = cp.Variable(n)
+
+        # Define the objective function: maximize returns for given risk (mean-variance optimization)
+        objective = cp.Maximize(returns.T @ weights - cp.quad_form(weights, covariance_matrix))
+
+        # Define the constraints: sum of weights is 1, weights are non-negative
+        constraints = [cp.sum(weights) == 1, weights >= 0]
+
+        # Formulate and solve the optimization problem
+        problem = cp.Problem(objective, constraints)
+        problem.solve()
+
+        # Retrieve the optimized weights
+        optimized_weights = weights.value
         return optimized_weights
 
     def run(self, data):
