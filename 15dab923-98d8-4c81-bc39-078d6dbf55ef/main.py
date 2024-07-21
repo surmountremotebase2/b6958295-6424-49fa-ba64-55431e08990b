@@ -68,29 +68,4 @@ class TradingStrategy(Strategy):
             grad_risk = risks / portfolio_risk
 
             # Update weights
-            weights += learning_rate * (grad_return - grad_risk)
-            weights = np.maximum(weights, 0)  # Ensure weights are non-negative
-            weights /= np.sum(weights)  # Normalize to ensure weights sum to 1
-
-        return weights
-
-    def run(self, data):
-        returns = []
-        risks = []
-
-        momentum_scores = self.calculate_momentum_scores(data)
-
-        for ticker in self.tickers:
-            # Assuming data["fundamentals"] contains necessary return and risk data
-            returns.append(data["fundamentals"][ticker]['return'])
-            risks.append(data["fundamentals"][ticker]['risk'])
-
-        # Perform basic optimization
-        optimized_weights = self.optimize_portfolio(np.array(returns), np.array(risks))
-
-        # Generate allocations based on optimized weights
-        allocation_dict = {ticker: optimized_weights[i] for i, ticker in enumerate(self.tickers)}
-
-        log(f"Allocations: {allocation_dict}")
-        return TargetAllocation(allocation_dict)
-`
+            weights += learning_rate * (grad_return -
