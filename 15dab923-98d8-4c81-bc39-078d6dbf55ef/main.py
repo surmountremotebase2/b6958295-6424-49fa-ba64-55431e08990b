@@ -1,6 +1,5 @@
 from surmount.base_class import Strategy, TargetAllocation
 from surmount.technical_indicators import MACD
-from surmount.data import get_ticker_correlation
 from surmount.logging import log
 import cvxpy as cp
 import numpy as np
@@ -36,12 +35,14 @@ class TradingStrategy(Strategy):
             momentum_scores[ticker] = momentum_score
         return momentum_scores
 
-    def optimize_portfolio(self, returns, risks, correlation_matrix):
+    def optimize_portfolio(self, returns, risks):
         n = len(returns)
         # Convert lists to numpy arrays
         returns = np.array(returns)
         risks = np.array(risks)
-        correlation_matrix = np.array(correlation_matrix)
+
+        # Create a placeholder correlation matrix (identity matrix for simplicity)
+        correlation_matrix = np.identity(n)
 
         # Create the covariance matrix from correlation and risks
         covariance_matrix = np.outer(risks, risks) * correlation_matrix
@@ -74,11 +75,8 @@ class TradingStrategy(Strategy):
             returns.append(data["fundamentals"][ticker]['return'])
             risks.append(data["fundamentals"][ticker]['risk'])
 
-        # Get correlation matrix
-        correlation_matrix = get_ticker_correlation(self.tickers)
-
         # Perform mean-variance optimization
-        optimized_weights = self.optimize_portfolio(returns, risks, correlation_matrix)
+        optimized_weights = self.optimize_portfolio(returns, risks)
 
         # Generate allocations based on optimized weights
         allocation_dict = {ticker: optimized_weights[i] for i, ticker in enumerate(self.tickers)}
