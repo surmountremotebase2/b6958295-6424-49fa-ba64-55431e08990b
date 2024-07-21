@@ -1,14 +1,13 @@
 from surmount.base_class import Strategy, TargetAllocation
-from surmount.technical_indicators import SMA
 from surmount.logging import log
 from surmount.data import Asset
+import pandas as pd
 
 class TradingStrategy(Strategy):
     def __init__(self):
-        # The VIX ticker is often represented as "^VIX" in market data sources; 
-        # however, ensure this matches the representation in Surmount's data source.
+        # Ensure "^VIX" matches the representation in Surmount's data source
         self.tickers = ["^VIX"]
-        self.data_list = [Asset("^VIX")]  # Assuming "^VIX" is a valid ticker in Surmount
+        self.data_list = [Asset(ticker) for ticker in self.tickers]
 
     @property
     def interval(self):
@@ -23,24 +22,45 @@ class TradingStrategy(Strategy):
         return self.data_list
 
     def run(self, data):
-        # Simple strategy based on the 10-day Simple Moving Average (SMA) of VIX
-        vix_data = data["ohlcv"]  # Assuming 'ohlcv' is the right way to access price data
-        vix_prices = [day["^VIX"]["close"] for day in vix_data][-10:]  # Last 10 days of VIX closing prices
-        sma_10 = sum(vix_prices) / 10
-
-        current_vix_price = vix_prices[-1]
-        allocation = {}
-
-        # If current VIX price is 10% above the SMA, it might indicate fear: reduce equity exposure
-        if current_vix_price > sma_10 * 1.10:
-            log("Market might be entering a fear stage. Considering reducing equity exposure.")
-            # The allocation could be adjusted to shift towards safer assets, 
-            # but that requires knowing what other assets are in the portfolio.
-            # This is a placeholder; the actual implementation might look different.
-        # If current VIX price is below the SMA, market might be complacent: consider increasing equity exposure
-        elif current_vix_price < sma_10:
-            log("Market might be complacent. Considering increasing equity exposure.")
-            # Similarly, this is where you'd adjust allocation to be more aggressive, potentially.
+        allocations = {}
         
-        # This example does not specify actual reallocation values; those should be defined based on your own criteria and included assets. 
-        return TargetAllocations({})
+        for asset in self.data_list:
+            # Retrieve the data for each asset from the provided 'data' dictionary
+            if asset.ticker not in data:
+                log(f"No data available for {asset.ticker}")
+                continue
+            
+            asset_data = data[asset.ticker]
+            
+            if not isinstance(asset_data, pd.DataFrame):
+                log(f"Expected DataFrame for {asset.ticker}, but got {type(asset_data)}")
+                continue
+            
+            # Ensure data has 'Close' column
+            if 'Close' not in asset_data.columns:
+                log(f"'Close' column missing for {asset.ticker}")
+                continue
+            
+            # Calculate the SMA for the last 10 days
+            vix_prices = asset_data["Close"].tail(10)
+            sma_10 = vix_prices.mean()
+            
+            current_vix_price = vix_prices.iloc[-1]
+            
+            # Decision-making based on the VIX price and SMA
+            if current_vix_price > sma_10 * 1.10:
+                log("Market might be entering a fear stage. Considering reducing equity exposure.")
+                # Placeholder for actual reallocation logic
+                allocations[asset.ticker] = TargetAllocation(0.1)  # Example: Reduce to 10%
+            elif current_vix_price < sma_10:
+                log("Market might be complacent. Considering increasing equity exposure.")
+                # Placeholder for actual reallocation logic
+                allocations[asset.ticker] = TargetAllocation(0.5)  # Example: Increase to 50%
+
+        return allocations
+
+# Example usage:
+# Initialize the strategy
+# strategy = TradingStrategy()
+# Run the strategy with historical data
+# results = strategy.run(data)
